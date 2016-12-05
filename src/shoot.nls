@@ -1,0 +1,106 @@
+to build-shot [targetsForShoots miss?]
+  hatch-shoots 1 [ 
+    set color white
+    set shape "line half"
+    let test one-of targetsForShoots
+    ifelse is-ennemi? test[
+      ask convois with [to-protect?][
+        set targetsForShoots sort-by [distance ?1 < distance ?2] targetsForShoots
+      ]
+      set target item 0 targetsForShoots
+    ]
+    [
+      set target one-of targetsForShoots
+    ]
+    set missed? miss?
+    if target != nobody 
+    [
+      face target
+      set target-breed [ breed ] of target
+    ]
+  ]
+end
+
+to update-shoots
+  ask shoots [
+    let nextpx 0
+    let nextpy 0
+    ask patch-at dx dy mapAlt [
+      set nextpx pxcor
+      set nextpy pycor
+    ]
+    if abs(pxcor - nextpx) > 1 or abs(pycor - nextpy) > 1
+    [
+      die
+    ]
+    if [obstacle?] of patch-here [
+      die 
+    ]
+    if [pzcor] of patch-here = 0
+    [
+      die 
+    ]
+    
+    
+    if not missed? and target != nobody [ face target ]
+    fd (0.14 * simu-speed) ; Valeur arbitraire
+    ifelse target-breed = convois
+    [
+      let prey one-of convois-here
+      if prey != nobody
+      [
+        ask prey
+        [
+          set life (life - 1)
+          if life = 0[           
+            set nb-cars ( nb-cars - 1 )
+            if nb-cars > 0 [
+              let i 1
+              while [convoi (who + i) = nobody][
+                set i i + 1
+              ]
+              ask convoi (who + i) [
+                set leader? true
+              ]
+            ]
+            die
+          ]
+        ]
+        die
+      ]
+    ]
+    ; else
+    [
+      ifelse target-breed = ennemis
+      [
+        let prey one-of ennemis-here
+        if prey != nobody
+        [
+          ask prey
+          [
+            set life (life - 1)
+            if life = 0[
+              set dead? true
+            ]
+          ]
+          die
+        ]
+      ]
+      ; else target-breed = drones
+      [
+        let prey one-of drones-here
+        if prey != nobody
+        [
+          ask prey
+          [
+            set dead? true
+          ]
+          die
+        ]
+      ]
+    ]
+  ]
+  
+  
+end
+

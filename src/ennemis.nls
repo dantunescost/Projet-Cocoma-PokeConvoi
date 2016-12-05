@@ -1,0 +1,148 @@
+;**********************
+;        Ennemis
+;**********************
+; Generation des ennemis
+to setup-ennemis
+  create-ennemis nb-ennemis
+  ask ennemis [
+    set shape "person"
+    set color red
+    set destination nobody
+    
+    set currentReload ennemi-reloadRate
+    
+    let x random-xcor
+    let y random-ycor
+    
+    let done false
+    while [not done] [
+      ask patch-at x y mapAlt [
+        ifelse (pcolor < (green + 2)) and (pcolor > (green - 2)) and ((x > 15) or (y > 15))
+        [set done true]
+        [set x random-xcor
+         set y random-ycor]
+      ]
+    ]
+    setxyz x y solAlt
+    
+    set dead? false
+    set life ennemi-lifeSpan
+    
+    set speed (ennemi-speed * simu-speed)
+  ]
+end
+
+; Comportement des ennemis
+to ennemis-think
+  ask ennemis [
+   ennemi-observe
+   
+   ifelse any? targets [
+     ennemi-follow-target
+   ]
+   [
+     ennemi-random-move
+   ]
+   
+   ennemi-shoot
+   
+   if dead? [
+    die 
+   ]
+  ]
+end
+
+to-report detect-obstacle-ennemi ; ennemi procedure
+  let answer false
+  let nextpx 0
+  let nextpy 0
+
+  ask patch-at dx dy mapAlt [
+   set nextpx pxcor
+   set nextpy pycor
+  ]
+
+  if any? other patches in-cone 1.5 90 with [obstacle?] [set answer true]
+
+  if abs(pxcor - nextpx) > 1 or abs(pycor - nextpy) > 1
+  [set answer true]
+
+  report answer
+end
+
+
+to ennemi-follow-target
+  let t one-of targets
+  set destination ([patch-here] of t)
+  if (destination != nobody ) [
+    let headingFlag (towards-nowrap destination)
+    let dirCorrection subtract-headings headingFlag heading
+    
+    if dirCorrection > 30 [
+     set dirCorrection 30 
+    ]
+    if dirCorrection < -30 [
+     set dirCorrection -30
+    ]
+    
+    set heading ( heading + dirCorrection )
+	if not detect-obstacle-ennemi [
+		fd speed
+	]
+  ]
+end
+
+; Deplacement aleatoire
+to ennemi-random-move ; ennemi procedure
+  if destination = nobody
+  [
+    let done false
+    while [not done]
+    [
+      rt random 360
+      let dist ((random 6) + 3)
+      set destination patch-ahead dist
+      if destination != nobody
+      [
+        set done true
+      ]
+    ]
+  ]
+  
+  ifelse detect-obstacle-ennemi
+  [
+    set destination nobody
+  ]
+  [
+    set pitch 0
+    fd speed
+  ]
+  
+  if destination = patch-here 
+  [
+    set destination nobody 
+  ]
+
+end
+
+to ennemi-observe
+  set targets convois in-radius-nowrap ennemi-vision
+end
+
+to ennemi-shoot ; ennemi procedure
+
+  ifelse ( currentReload < ennemi-reloadRate )
+  [
+    set currentReload ( currentReload + 1 )
+  ]
+  ; else
+  [
+    if any? targets
+    [
+      let miss? (random 100) > ennemi-accuracy
+      build-shot targets miss?
+      set currentReload 0
+    ]
+  ] ; ifelse
+end
+
